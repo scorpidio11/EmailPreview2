@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Replacement</title>
+<style>
+body {
+	text-align: center;
+	vertical-align: top;
+	margin: 20px auto;
+	background-color: #F2F0F0;
+}
+.form-style {
+	font-family: Gotham, "Helvetica Neue", Helvetica, Arial, "sans-serif";
+	margin: 10px;
+	font-size: 20px;
+	color: #5E5B54;
+}
+#inputText {
+	width: 60%;
+	min-width: 300px;
+	height: 300px;
+}
+#outputText {
+	width: 60%;
+	min-width: 300px;
+	height: 300px;
+}
+#replaceButton {
+	padding: 10px;
+	margin: 10px;
+}
+button {
+	border: 1px solid #D31245;
+	border-radius: 30px;
+	padding: 10px 30px;
+	background: #D31245;
+	color: white;
+	width: 200px;
+}
+p {
+	display: block;
+}
+</style>
+<script>
+    function replaceText() {
+        var inputText = document.getElementById("inputText").value;
+        var replacedText = inputText.replace(/http:\/\/www\.taylormorrison\.com|https:\/\/www\.taylormorrison\.com|www\.taylormorrison\.com\/home-financing|Taylor Morrison homepage|www\.lifestoryresearch\.com|Taylor Morrison Home Financing homepage|www\.taylormorrison\.com|www\.nmlsconsumeraccess\.org|NMLS Consumer Access homepage|Lifestory Research homepage|Bloomberg homepage|www\.bloomberg\.com\/gei/gi, function(match) {
+            if (match === "www.taylormorrison.com/home-financing" || match === "Taylor Morrison Home Financing homepage") {
+                return '<a alias="TMHFHomepageDisclaimer" href="https://www.taylormorrison.com/home-financing" target="_blank" style="color:#FFFFFF;" class="darkmode-text">Taylor Morrison Home Financing homepage</a>';
+            } else if (match === "www.lifestoryresearch.com" || match === "Lifestory Research homepage") {
+                return '<a alias="LifestoryHomepageDisclaimer" href="https://www.lifestoryresearch.com" target="_blank" style="color:#FFFFFF;" class="darkmode-text">Lifestory Research homepage</a>';
+            } else if (match === "www.taylormorrison.com" || match === "Taylor Morrison homepage" || match === "http://www.taylormorrison.com" || match === "https://www.taylormorrison.com") {
+                return '<a alias="TaylorMorrisonHomepageDisclaimer" href="https://www.taylormorrison.com" target="_blank" style="color:#FFFFFF;" class="darkmode-text">Taylor Morrison homepage</a>';
+            } else if (match === "www.nmlsconsumeraccess.org" || match === "NMLS Consumer Access homepage") {
+                return '<a alias="NMLSHomepageDisclaimer" href="https://www.nmlsconsumeraccess.org" target="_blank" style="color:#FFFFFF;" class="darkmode-text">NMLS Consumer Access homepage</a>';
+            } else if (match === "www.bloomberg.com/gei" || match === "Bloomberg homepage") {
+                return '<a alias="BloombergDisclaimer" href="https://www.bloomberg.com/gei" target="_blank" style="color:#FFFFFF;" class="darkmode-text">Bloomberg homepage</a>';
+            }
+        });
+        document.getElementById("outputText").value = replacedText;
+    }
+
+    function copyText() {
+        var outputElement = document.getElementById("outputText");
+        outputElement.select();
+        document.execCommand("copy");
+    }
+</script>
+</head>
+<body >
+<div class="form-style">
+  <h3>Disclaimer URL Appender - Dark Background White Text</h3>
+  <p style="font-size: 12px; line-height: 20px; width: 60%; text-align: left; margin: 0 auto; padding-bottom: 10px;">The purpose of this appender app is to add stylized URLs to frequently used links in the disclaimer. By applying CSS styling, it ensures that the links maintain their intended format and do not appear as blue text in the Outlook email client.</p>
+  <p style="font-size: 12px; line-height: 20px; width: 60%; text-align: left; margin: 0 auto; padding-bottom: 10px;"> <strong> www.lifestoryresearch.com<br>
+    www.taylormorrison.com <br>
+    www.nmlsconsumeraccess.org <br>
+    www.taylormorrison.com/home-financing<br>
+    www.bloomberg.com/gei</strong> </p>
+  <label for="inputText">
+  <p>Input Text</p>
+  </label>
+  <textarea id="inputText"></textarea>
+  <br>
+  <button onclick="replaceText()" id="replaceButton">Append URL</button>
+  <br>
+  <button onclick="copyText()">Copy to Clipboard</button>
+  <label for="outputText">
+  <p>Output Text</p>
+  </label>
+  <textarea id="outputText" readonly></textarea>
+</div>
+</body>
+</html>
