@@ -323,7 +323,12 @@ Select one or more HTML files, fill in the fields above, then click “Generate 
         ? `© %%xtmonth%%  %%xtyear%%, ${info.licenseInfo} All rights reserved.`
         : '';
 
-      return html
+      
+      // Keep/remove <p id="publicreport">…</p> by division (only keep for PHX/LV/S-CA)
+      if (!['phoenix', 'lasvegas', 's-california'].includes(divisionKey)) {
+        html = html.replace(/<p id="publicreport"[\s\S]*?<\/p>/i, '');
+      }
+return html
         .replace(/\[community name\]/gi, communityName)
         .replace(/\[community url\]/gi, communityURL)
         .replace(/\[city and state\]/gi, cityState)
