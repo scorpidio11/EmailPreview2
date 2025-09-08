@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HTML Generator (Batch)</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    label { display: block; margin-top: 1rem; font-weight: bold; }
+    input[type="text"], input[type="url"], select {
+      width: 100%; padding: 0.5rem; margin-top: 0.25rem;
+      box-sizing: border-box; font-size: 1rem;
+    }
+    .file-row label { display: inline-block; font-weight: bold; }
+    .file-row input[type="file"] { display: inline-block; margin-left: 0.5rem; }
+    .generate-row { margin-top: 1rem; }
+    #outputLog {
+      width: 100%; height: 150px; margin-top: 1rem;
+      padding: 0.5rem; box-sizing: border-box;
+      font-family: monospace;
+      background-color: #f8f8f8;
+      border: 1px solid #ddd;
+      overflow-y: auto;
+    }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    
+    /* Compact embed overrides — paste at the END of your <style> */
+:root{
+  --ui-scale: 0.90;     /* scale down overall UI (0.75–1.00) */
+  --max-width: 1100px;  /* limit content width inside the iframe */
+}
+
+/* Chrome/Edge: zoom keeps scrollHeight consistent, so the iframe auto-height stays correct */
+html { zoom: var(--ui-scale); }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body{
+  max-width: var(--max-width);
+  margin: 0 auto;            /* center within the iframe */
+  padding: 12px;             /* small breathing room */
+  overflow-x: hidden;        /* avoid horizontal overflow */
+}
+
+/* tighten type & spacing a bit */
+h1{ font-size: 1.35rem; margin: 0 0 .75rem; }
+label{ margin-top: .6rem; }
+input[type="text"], input[type="url"], select{
+  padding: .45rem .6rem;
+  font-size: .95rem;
+}
+button{
+  padding: .55rem .95rem;
+  font-size: .95rem;
+}
+
+/* make media never overflow */
+img, video, canvas, svg{ max-width: 100%; height: auto; }
+
+/* textareas/log panes should not force horizontal scroll */
+textarea{ max-width: 100%; }
+
+/* Optional: if any internal wrapper exists, keep it contained */
+#app, .container, .wrap, .content{
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+  </style>
+
+  <!-- JSZip CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+  <h1>HTML Generator (Batch)</h1>
+
+  <label for="communityName">Community Name:</label>
+  <input id="communityName" type="text" placeholder="e.g. Sunnyvale Villas">
+
+  <label for="communityUrl">Community URL:</label>
+  <input id="communityUrl" type="url" placeholder="e.g. https://sunnyvale-villas.example.com">
+
+  <label for="division">Division:</label>
+  <select id="division">
+    <option value="">Select Your Division</option>
+    <option value="bay">Bay</option>
+    <option value="s-california">Southern California</option>
+    <option value="sacramento">Sacramento</option>
+    <option>---------------</option>
+    <option value="portland">Portland</option>
+    <option value="seattle">Seattle</option>
+    <option>---------------</option>
+    <option value="austin">Austin</option>
+    <option value="dallas">Dallas</option>
+    <option value="houston">Houston</option>
+    <option>---------------</option>
+    <option value="jacksonville">Jacksonville</option>
+    <option value="naples">Fort Myers Naples</option>
+    <option value="orlando">Orlando</option>
+    <option value="sarasota">Sarasota</option>
+    <option value="tampa">Tampa</option>
+    <option value="treasure">Treasure Coast</option>
+    <option>---------------</option>
+    <option value="denver">Denver</option>
+    <option value="lasvegas">Las Vegas</option>
+    <option value="phoenix">Phoenix</option>
+    <option>---------------</option>
+    <option value="atlanta">Atlanta</option>
+    <option value="charlotte">Charlotte (NC)</option>
+    <option value="charlotte_south">South Carolina</option>
+    <option value="raleigh">Raleigh</option>
+    <option value="indy">Indianapolis</option>
+    <option>---------------</option>
+    <option value="corp">Corporate</option>
+  </select>
+
+  <label for="cityState">City and State:</label>
+  <input id="cityState" type="text" placeholder="e.g. Scottsdale, AZ">
+
+  <div class="file-row">
+    <label for="fileInput">Upload HTML Files:</label>
+    <input type="file" id="fileInput" accept=".html,text/html" multiple>
+  </div>
+
+  <div class="generate-row">
+    <button id="generateBtn">Generate &amp; Download ZIP</button>
+  </div>
+
+  <textarea id="outputLog" readonly>
+Select one or more HTML files, fill in the fields above, then click “Generate & Download ZIP” to get all revised files in a ZIP.
+  </textarea>
+
+  <script>
+    let files = [];
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+      files = Array.from(e.target.files);
+      document.getElementById('outputLog').value =
+        files.length
+          ? `📂 ${files.length} file(s) selected:\n` + files.map(f => f.name).join('\n')
+          : 'No files selected…';
+    });
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      if (!files.length) return alert('Please select at least one HTML file first.');
+      const community = document.getElementById('communityName').value.trim();
+      if (!community) return alert('Please enter a Community Name.');
+      const url = document.getElementById('communityUrl').value.trim();
+      if (!url) return alert('Please enter a Community URL.');
+      const divisionKey = document.getElementById('division').value;
+      if (!divisionKey) return alert('Please select a Division.');
+      const cityState = document.getElementById('cityState').value.trim();
+      if (!cityState) return alert('Please enter a City and State.');
+
+      const zip = new JSZip();
+      const log = [];
+
+      await Promise.all(files.map(file => new Promise(res => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const revised = reviseEmailHTML(ev.target.result, community, url, divisionKey, cityState);
+            const base = file.name.replace(/\.html?$/i, '');
+            zip.file(base + '-revised.html', revised);
+            log.push(`✅ ${file.name} → ${base}-revised.html`);
+          } catch (err) {
+            log.push(`❌ ${file.name} error: ${err.message}`);
+          }
+          res();
+        };
+        reader.onerror = () => {
+          log.push(`❌ ${file.name} could not be read.`);
+          res();
+        };
+        reader.readAsText(file);
+      })));
+
+      zip.generateAsync({ type: 'blob' }).then(blob => {
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'revised-emails.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(downloadUrl);
+
+        document.getElementById('outputLog').value = log.join('\n')
+          + '\n\n📥 Your ZIP is downloading…';
+      });
+    });
+
+    function reviseEmailHTML(html, communityName, communityURL, divisionKey, cityState) {
+      // remove any <mark> tags
+      html = html.replace(/<\/?mark>/gi, '');
+
+      const now = new Date();
+      const months = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+      const month = months[now.getMonth()], year = now.getFullYear();
+
+      const divisionData = {
+        bay: {
+          entityAddress: "Taylor Morrison of California, LLC and William Lyon Homes,<br>2603 Camino Ramon, Suite 450, San Ramon, CA 94583",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: CA: DFPI #4130023",
+          licenseInfo:   "Taylor Morrison Services, Inc., DRE #00968975; Taylor Morrison Services, Inc., CSLB License #519465 and William Lyon Homes, Inc., CSLB License #527293. Taylor Morrison of California, LLC, William Lyon Homes, Inc."
+        },
+        "s-california": {
+          entityAddress: "Taylor Morrison of California, LLC<br>6440 Oak Canyon, Suite 200, Irvine, CA 92618",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: CA: DFPI #4130023",
+          licenseInfo:   "Taylor Morrison Services, Inc., DRE #00968975; Taylor Morrison Services, Inc., CSLB License #519465 and William Lyon Homes, Inc., CSLB License #527293. Taylor Morrison of California, LLC, William Lyon Homes, Inc. and RSI Communities-California, LLC."
+        },
+        sacramento: {
+          entityAddress: "Taylor Morrison of California, LLC | Sacramento<br>81 Blue Ravine Road, Ste. 220, Folsom, CA 95630",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: CA: DFPI #4130023",
+          licenseInfo:   "Taylor Morrison Services, Inc., DRE #00968975; Taylor Morrison Services, Inc., CSLB License #519465. Taylor Morrison of California, LLC."
+        },
+        austin: {
+          entityAddress: "Taylor Morrison of Texas, Inc. and WLH Communities – Texas LLC<br>9601 Amberglen Blvd. Bldg G, Suite #200, Austin, TX 78729",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: TX: #8588",
+          licenseInfo:   "Taylor Morrison of Texas, Inc. and WLH Communities – Texas LLC, each the “Selling Entity” as applicable to client’s transaction."
+        },
+        dallas: {
+          entityAddress: "Taylor Morrison of Texas, Inc.<br>6735 Salt Cedar Way, Building 1, Suite 200, Frisco, TX 75034",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751. Licensed location: TX: #8588 ",
+          licenseInfo:   "Taylor Morrison of Texas, Inc."
+        },
+        houston: {
+          entityAddress: "Taylor Morrison of Texas, Inc.<br>3250 Briarpark Drive Suite 300, Houston, Texas 77042",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: TX: #8588",
+          licenseInfo:   "Taylor Morrison of Texas, Inc."
+        },
+        jacksonville: {
+          entityAddress: "Taylor Morrison of Georgia, LLC and Taylor Morrison of Florida, Inc.<br>7785 Baymeadows Way, Suite 105, Jacksonville, FL 32256",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: FL: MLD1920 | GA: #52654 ",
+          licenseInfo:   "Taylor Morrison Realty of Georgia, Inc. Firm #75069. Taylor Morrison of Georgia, LLC, Taylor Morrison of Florida, Inc. CBC1265083"
+        },
+        naples: {
+          entityAddress: "Taylor Morrison of Florida, Inc.<br>28100 Bonita Grande Drive, Suite 102, Bonita Springs, FL 34135",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location FL: MLD1920 ",
+          licenseInfo:   "Taylor Morrison of Florida, Inc. CBC1263209."
+        },
+        orlando: {
+          entityAddress: "Taylor Morrison of Florida, Inc. & Avatar Properties Inc.<br>2600 Lake Lucien Drive, Suite 350, Maitland, FL 32751",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: FL: MLD1920 ",
+          licenseInfo:   "Taylor Morrison of Florida, Inc. CBC1257462."
+        },
+        sarasota: {
+          entityAddress: "Taylor Morrison of Florida, Inc.<br>551 N. Cattlemen Road, Suite 200, Sarasota, FL 34232",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: FL: MLD1920 ",
+          licenseInfo:   "Taylor Morrison of Florida, Inc. CBC1259457, CGC1529148."
+        },
+        tampa: {
+          entityAddress: "Taylor Morrison of Florida, Inc.<br>10210 Highland Manor Dr., Suite 400A, Tampa, FL 33610",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: FL: MLD1920 ",
+          licenseInfo:   "Taylor Morrison of Florida, Inc. CRC1328617 & CGC1537334; Taylor Woodrow Communities at Artisan Lakes, L.L.C. CGC1519714."
+        },
+        treasure: {
+          entityAddress: "Taylor Morrison of Florida, Inc.<br>551 N. Cattlemen Road, Suite 200, Sarasota, FL 34232",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: FL: MLD1920 ",
+          licenseInfo:   "Taylor Morrison of Florida, Inc. CBC1259457 & CGC1529148."
+        },
+        denver: {
+          entityAddress: "Taylor Morrison of Colorado, Inc.<br>400 Inverness Parkway, Suite 350, Englewood, CO 80112",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: CO: Registration #8588, PH# 866-379-5390 ",
+          licenseInfo:   "Taylor Morrison of Colorado, Inc. and William Lyon Homes, Inc., each the “Selling Entity” as applicable to client’s transaction."
+        },
+        lasvegas: {
+          entityAddress: "William Lyon Homes, Inc. dba Taylor Morrison<br>1980 Festival Plaza Drive, Suite 520, Las Vegas, NV 89135",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: NV: #3938 (branch located at 1820 Festival Plaza Dr, Ste. 220A, Las Vegas, NV 89135 (“Affiliated Lender”)) ",
+          licenseInfo:   "Robert Evon, Sales Manager #BS.0029612.SMGR; William Lyon Homes, Inc. dba Taylor Morrison, NSCL #0040722. Taylor Morrison of Nevada, LLC; William Renteria, Broker, Lic. # B.0146240.LLC."
+        },
+        phoenix: {
+          entityAddress: "TM Homes of Arizona, Inc.<br>4900 N. Scottsdale Road, Suite 2200, Scottsdale, AZ 85251",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: AZ: #0917436 ",
+          licenseInfo:   "Taylor Morrison/Arizona, Inc., ROC #179178B; JCH Construction, LLC, ROC #256789; William Lyon Homes, Inc., ROC #080777. TM Homes of Arizona, Inc., AZ DRE #CO535669000; AV Homes of Arizona, LLC, AZ DRE #LC632206000; William Lyon Southwest, Inc., AZ DRE #CO521011000."
+        },
+        portland: {
+          entityAddress: "Taylor Morrison Northwest LLC<br>703 Broadway Street, Suite 710, Vancouver, WA 98660",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: OR: #ML-4272 | WA: #CL-8588 ",
+          licenseInfo:   "Cascadian South L.L.C., Oregon Real Estate License No. 950300179; Taylor Morrison Northwest, LLC, Oregon CCB License No. 204238; South Cooper Mountain Owner, LLC, Oregon CCB License No. 222618; Cascadian King Company LLC, Washington Real Estate License No. 8193; Taylor Morrison Northwest, LLC, Washington License No. TAYLOMN791L8."
+        },
+        seattle: {
+          entityAddress: "Taylor Morrison Northwest, LLC<br>13810 SE Eastgate Way, Ste. 410, Bellevue, WA 98005",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: WA: #CL-8588 ",
+          licenseInfo:   "Taylor Morrison Northwest, LLC WA Contractor License #TAYLOMN791L8; Broker license: Cascadian King Company LLC #8193."
+        },
+        atlanta: {
+          entityAddress: "Taylor Morrison of Georgia, LLC<br>4400 North Point Parkway, Suite 295, Alpharetta, GA 30022",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: GA: #52654 ",
+          licenseInfo:   "Taylor Morrison Realty of Georgia, Inc. Firm #75069; Taylor Morrison of Georgia, LLC."
+        },
+        charlotte: {
+          entityAddress: "Taylor Morrison of Carolinas, Inc. | Charlotte<br>11405 N. Community House Rd Suite 150, Charlotte, NC 28277",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: NC: #L-191654 | SC: #MLS-8588 ",
+          licenseInfo:   "Taylor Morrison of Carolinas, Inc., NCGCL #76596."
+        },
+        charlotte_south: {
+          entityAddress: "Taylor Morrison of Carolinas, Inc. | Charlotte<br>11405 N. Community House Rd Suite 150, Charlotte, NC 28277",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed locations: NC: #L-191654 | SC: #MLS-8588 ",
+          licenseInfo:   "Taylor Morrison of Carolinas, Inc., NCGCL #76596."
+        },
+        raleigh: {
+          entityAddress: "Taylor Morrison of Carolinas, Inc. | Raleigh<br>15501 Weston Parkway, Suite 100, Cary, NC 27513",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: NC: #L-191654 ",
+          licenseInfo:   "Taylor Morrison of Carolinas, Inc., NCGCL #76596; AV Homes of Raleigh, LLC, NCGCL #79166."
+        },
+        indy: {
+          entityAddress: "Taylor Morrison of Indiana, LLC<br>630 3rd Ave SW Ste 200, Carmel, IN 46032-2082",
+          tmhfInfo:      "Taylor Morrison Home Funding, Inc., NMLS #8588, 495 North Keller Road, Suite 550, Maitland, FL 32751, Licensed location: IN: #DFI-66890 ",
+          licenseInfo:   "Taylor Morrison of Indiana, LLC."
+        },
+        corp: {
+          entityAddress: "", 
+          tmhfInfo:    "", 
+          licenseInfo: ""
+        }
+      };
+
+      const info = divisionData[divisionKey] || { entityAddress:'', tmhfInfo:'', licenseInfo:'' };
+      const fullLicense = info.licenseInfo
+        ? `© %%xtmonth%%  %%xtyear%%, ${info.licenseInfo} All rights reserved.`
+        : '';
+
+      return html
+        .replace(/\[community name\]/gi, communityName)
+        .replace(/\[community url\]/gi, communityURL)
+        .replace(/\[city and state\]/gi, cityState)
+        .replace(/\[division entity and address\]/gi, info.entityAddress)
+        .replace(/\[division tmhf info\]/gi, info.tmhfInfo)
+        .replace(/\[division license\]/gi, fullLicense);
+    }
+  </script>
+</body>
+</html>
